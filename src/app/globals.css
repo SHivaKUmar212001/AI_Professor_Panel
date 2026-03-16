@@ -1,26 +1,164 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-space-grotesk);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #05101d;
+  --background-secondary: #09172b;
+  --foreground: #edf6ff;
+  --muted: rgba(214, 230, 255, 0.62);
+  --panel: rgba(7, 17, 31, 0.72);
+  --panel-border: rgba(117, 223, 255, 0.16);
+  --accent: #67f3ff;
+  --accent-strong: #16d5ff;
+  --accent-secondary: #9dffb4;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-space-grotesk), sans-serif;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(28, 195, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 85% 12%, rgba(120, 255, 214, 0.12), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(13, 88, 255, 0.18), transparent 36%),
+    linear-gradient(180deg, rgba(8, 18, 34, 0.2), rgba(5, 10, 18, 0.9));
+  pointer-events: none;
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(103, 243, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 243, 255, 0.05) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at center, black 45%, transparent 95%);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: -1;
+}
+
+a,
+button,
+input,
+textarea {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+::selection {
+  background: rgba(103, 243, 255, 0.28);
+  color: white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Particle background animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+  25% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
+  50% { transform: translateY(-10px) translateX(-5px); opacity: 0.4; }
+  75% { transform: translateY(-30px) translateX(15px); opacity: 0.5; }
+}
+
+.particle {
+  animation: float linear infinite;
+}
+
+.panel-surface {
+  position: relative;
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(13, 25, 44, 0.78), rgba(6, 14, 26, 0.88)),
+    rgba(6, 14, 26, 0.72);
+  border: 1px solid var(--panel-border);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(22px);
+}
+
+.panel-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(103, 243, 255, 0.1), transparent 28%),
+    linear-gradient(315deg, rgba(157, 255, 180, 0.06), transparent 24%);
+  opacity: 0.9;
+}
+
+.panel-inner-glow {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 30px 80px rgba(103, 243, 255, 0.04);
+}
+
+.hud-label {
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: rgba(180, 223, 255, 0.6);
+}
+
+.accent-text {
+  background: linear-gradient(90deg, #dffaff 0%, #67f3ff 40%, #9dffb4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.futuristic-outline {
+  position: relative;
+}
+
+.futuristic-outline::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  pointer-events: none;
 }
