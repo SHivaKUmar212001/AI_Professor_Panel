@@ -65,7 +65,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
         return;
       }
 
-      router.push("/arena");
+      router.push("/setup/agents");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
@@ -83,19 +83,21 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       >
         <p className="hud-label">Identity protocol</p>
         <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-          {isRegister ? "Create your operator account" : "Reconnect to your deck"}
+          {isRegister
+            ? "Create your Cortex Council account"
+            : "Reconnect to Cortex Council"}
         </h1>
         <p className="mt-4 text-sm leading-7 text-white/60 sm:text-base">
           {isRegister
-            ? "Create a persistent identity so multiple users can access the platform with their own protected discussion sessions."
-            : "Sign back into your account to launch a new professor panel or continue a live deliberation session."}
+            ? "Create a persistent identity so multiple users can enter Cortex Council with their own protected mentor sessions and debates."
+            : "Sign back in to launch a mentor chamber or continue a live council debate."}
         </p>
 
         <div className="mt-8 space-y-3">
           {[
-            "Persistent user identities stored locally in the app database.",
+            "Persistent user identities stored locally in the council database.",
             "Protected discussion streams bound to the signed-in account.",
-            "Student-friendly or academic tone control before every discussion.",
+            "Mentor mode and council debate mode available after sign-in.",
           ].map((item) => (
             <div
               key={item}

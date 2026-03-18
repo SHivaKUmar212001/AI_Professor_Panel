@@ -18,7 +18,7 @@ export default function AgentSelector() {
             Assemble Your Panel
           </h2>
           <p className="mt-1 text-sm text-white/50">
-            Choose 2-5 intellectual agents for your discussion
+            Choose 2-5 council members for your discussion
           </p>
         </div>
         <div

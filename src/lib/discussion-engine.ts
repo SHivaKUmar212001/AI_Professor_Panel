@@ -1,6 +1,9 @@
-import { DiscussionMessage, DiscussionConfig, Agent } from "./types";
-import { getAgent } from "./agents";
-import { buildHistoryForAgent } from "./history-builder";
+import { Agent, DiscussionConfig, DiscussionMessage } from "./types";
+import { getAgent, moderatorAgent } from "./agents";
+import {
+  buildHistoryForAgent,
+  buildHistoryForModerator,
+} from "./history-builder";
 import { streamAgentResponse } from "./anthropic";
 
 type DiscussionEventName =
@@ -31,6 +34,7 @@ type DiscussionSubscriber = (payload: DiscussionStreamEvent) => void;
 export class DiscussionEngine {
   private config: DiscussionConfig;
   private agents: Agent[];
+  private moderator: Agent;
   private messages: DiscussionMessage[] = [];
   private abortController: AbortController | null = null;
   private stopped = false;
@@ -52,7 +56,8 @@ export class DiscussionEngine {
       .slice(2, 8)}`;
     this.agents = config.agentIds
       .map((id) => getAgent(id))
-      .filter((a): a is Agent => a !== undefined);
+      .filter((agent): agent is Agent => agent !== undefined);
+    this.moderator = moderatorAgent;
 
     if (this.agents.length < 2) {
       throw new Error("Need at least 2 valid agents");
@@ -153,16 +158,131 @@ export class DiscussionEngine {
   }
 
   private flushQueuedUserMessages() {
+    let injectedCount = 0;
+
     for (const entry of this.queuedUserMessages) {
       if (!entry.injected && entry.afterMessageIndex <= this.messages.length) {
         this.messages.push(entry.message);
         entry.injected = true;
+        injectedCount++;
       }
     }
 
     this.queuedUserMessages = this.queuedUserMessages.filter(
       (entry) => !entry.injected
     );
+
+    return injectedCount;
+  }
+
+  private async runTurn(
+    agent: Agent,
+    round: number,
+    history: { role: "user" | "assistant"; content: string }[]
+  ) {
+    const turnInRound = this.getNextTurnInRound(round);
+    this.emit("turn_start", {
+      agentId: agent.id,
+      agentName: agent.name,
+      agentColor: agent.color,
+      agentEmoji: agent.emoji,
+      round,
+      turnInRound,
+    });
+
+    this.abortController = new AbortController();
+    let fullText = "";
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        streamAgentResponse(
+          agent.systemPrompt,
+          history,
+          {
+            onToken: (token) => {
+              fullText += token;
+              this.emit("token", { agentId: agent.id, token });
+            },
+            onComplete: (text) => {
+              fullText = text;
+              resolve();
+            },
+            onError: (error) => {
+              reject(error);
+            },
+          },
+          this.abortController!.signal
+        ).catch(reject);
+      });
+    } catch (error) {
+      if (!this.stopped) {
+        this.emit("error", {
+          message: error instanceof Error ? error.message : "Unknown model error",
+          agentId: agent.id,
+        });
+      }
+    }
+
+    this.abortController = null;
+
+    if (!fullText.trim()) {
+      return { pausedDebate: false };
+    }
+
+    const pausedDebate = /\[(?:PAUSE_DEBATE|END_DEBATE)\]/i.test(fullText);
+    const cleanedText = fullText
+      .replace(/\[(?:PAUSE_DEBATE|END_DEBATE)\]\s*/gi, "")
+      .trim();
+
+    if (!cleanedText) {
+      return { pausedDebate };
+    }
+
+    const message: DiscussionMessage = {
+      id: `msg_${Date.now()}_${agent.id}`,
+      agentId: agent.id,
+      agentName: agent.name,
+      agentColor: agent.color,
+      agentEmoji: agent.emoji,
+      text: cleanedText,
+      round,
+      turnInRound,
+      timestamp: Date.now(),
+    };
+
+    this.messages.push(message);
+    this.emit("turn_end", {
+      messageId: message.id,
+      agentId: agent.id,
+      agentName: agent.name,
+      agentColor: agent.color,
+      agentEmoji: agent.emoji,
+      round,
+      fullText: cleanedText,
+    });
+
+    return { pausedDebate };
+  }
+
+  private async runModeratorTurn(
+    round: number,
+    kind: "opening" | "audience_intervention" | "round_transition" | "closing"
+  ) {
+    const history = buildHistoryForModerator(
+      this.messages,
+      this.config.topicPrompt,
+      round,
+      this.config.totalRounds,
+      this.config.discussionMode,
+      this.agents,
+      kind
+    );
+
+    const result = await this.runTurn(this.moderator, round, history);
+
+    if (result.pausedDebate) {
+      this.stopped = true;
+    }
   }
 
   private async run(): Promise<void> {
@@ -177,6 +297,12 @@ export class DiscussionEngine {
         color: agent.color,
         emoji: agent.emoji,
       })),
+      moderator: {
+        id: this.moderator.id,
+        name: this.moderator.name,
+        color: this.moderator.color,
+        emoji: this.moderator.emoji,
+      },
       topic: this.config.topicPrompt,
       totalRounds: this.config.totalRounds,
     });
@@ -194,25 +320,30 @@ export class DiscussionEngine {
         totalRounds: this.config.totalRounds,
       });
 
+      if (round === 1) {
+        await this.runModeratorTurn(round, "opening");
+      }
+
+      if (this.stopped) {
+        break;
+      }
+
       const orderedAgents = this.getAgentOrder(round);
-      let turnInRound = 0;
 
       for (const agent of orderedAgents) {
         if (this.stopped) {
           break;
         }
 
-        this.flushQueuedUserMessages();
+        const injectedCount = this.flushQueuedUserMessages();
 
-        turnInRound++;
-        this.emit("turn_start", {
-          agentId: agent.id,
-          agentName: agent.name,
-          agentColor: agent.color,
-          agentEmoji: agent.emoji,
-          round,
-          turnInRound,
-        });
+        if (injectedCount > 0) {
+          await this.runModeratorTurn(round, "audience_intervention");
+        }
+
+        if (this.stopped) {
+          break;
+        }
 
         const history = buildHistoryForAgent(
           agent.id,
@@ -224,72 +355,27 @@ export class DiscussionEngine {
           this.config.referenceDiscussion ?? null
         );
 
-        this.abortController = new AbortController();
-        let fullText = "";
-
-        try {
-          await new Promise<void>((resolve, reject) => {
-            streamAgentResponse(
-              agent.systemPrompt,
-              history,
-              {
-                onToken: (token) => {
-                  fullText += token;
-                  this.emit("token", { agentId: agent.id, token });
-                },
-                onComplete: (text) => {
-                  fullText = text;
-                  resolve();
-                },
-                onError: (error) => {
-                  reject(error);
-                },
-              },
-              this.abortController!.signal
-            ).catch(reject);
-          });
-        } catch (error) {
-          if (!this.stopped) {
-            this.emit("error", {
-              message:
-                error instanceof Error ? error.message : "Unknown model error",
-              agentId: agent.id,
-            });
-          }
-        }
-
-        if (fullText) {
-          const message: DiscussionMessage = {
-            id: `msg_${Date.now()}_${agent.id}`,
-            agentId: agent.id,
-            agentName: agent.name,
-            agentColor: agent.color,
-            agentEmoji: agent.emoji,
-            text: fullText,
-            round,
-            turnInRound,
-            timestamp: Date.now(),
-          };
-
-          this.messages.push(message);
-          this.emit("turn_end", {
-            messageId: message.id,
-            agentId: agent.id,
-            round,
-            fullText,
-          });
-        }
-
-        this.abortController = null;
+        await this.runTurn(agent, round, history);
 
         if (!this.stopped) {
           await new Promise((resolve) => setTimeout(resolve, turnDelay));
         }
       }
 
+      if (this.stopped) {
+        break;
+      }
+
+      await this.runModeratorTurn(
+        round,
+        round >= this.config.totalRounds ? "closing" : "round_transition"
+      );
+
       this.emit("round_end", {
         round,
-        messagesThisRound: turnInRound,
+        messagesThisRound: this.messages.filter(
+          (message) => message.round === round && message.agentId !== "__user__"
+        ).length,
       });
     }
 
@@ -297,7 +383,7 @@ export class DiscussionEngine {
     this.status = "completed";
 
     this.emit("discussion_end", {
-      totalRounds: this.config.totalRounds,
+      totalRounds: this.currentRound || this.config.totalRounds,
       totalMessages: this.messages.length,
     });
   }
@@ -306,9 +392,12 @@ export class DiscussionEngine {
     if (this.config.turnOrder === "random") {
       const shuffled = [...this.agents];
 
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      for (let index = shuffled.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [
+          shuffled[swapIndex],
+          shuffled[index],
+        ];
       }
 
       return shuffled;

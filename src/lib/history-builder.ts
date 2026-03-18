@@ -1,4 +1,9 @@
-import { DiscussionMessage, DiscussionMode, ReferenceDiscussion } from "./types";
+import {
+  Agent,
+  DiscussionMessage,
+  DiscussionMode,
+  ReferenceDiscussion,
+} from "./types";
 
 interface AnthropicMessage {
   role: "user" | "assistant";
@@ -26,7 +31,7 @@ export function buildHistoryForAgent(
   // First message is always the topic prompt
   history.push({
     role: "user",
-    content: `DISCUSSION TOPIC: ${topicPrompt}\n\nYou are in a panel discussion with other experts. Engage directly with what others say. Be specific and concise. Keep your response to 3-6 sentences. ${modeInstruction}${referenceInstruction}`,
+    content: `DISCUSSION TOPIC: ${topicPrompt}\n\nYou are in a live Cortex Council panel moderated in real time. Speak like an experienced faculty member addressing both peers and students: react directly to what others say, keep the room moving, and avoid detached essay-writing. Be specific and concise. Keep your response to 3-6 sentences. ${modeInstruction}${referenceInstruction}`,
   });
 
   // Build history from this agent's perspective
@@ -67,6 +72,56 @@ export function buildHistoryForAgent(
   }
 
   return merged;
+}
+
+export function buildHistoryForModerator(
+  allMessages: DiscussionMessage[],
+  topicPrompt: string,
+  currentRound: number,
+  totalRounds: number,
+  discussionMode: DiscussionMode,
+  panelAgents: Agent[],
+  turnKind: "opening" | "audience_intervention" | "round_transition" | "closing"
+): AnthropicMessage[] {
+  const history: AnthropicMessage[] = [];
+  const panelRoster = panelAgents
+    .map((agent) => `${agent.name} (${agent.title})`)
+    .join(", ");
+  const audienceInstruction =
+    discussionMode === "student"
+      ? "The audience includes students and non-specialists, so translate the live disagreement into language they can follow without flattening the ideas."
+      : "The audience can handle a serious, seminar-level exchange, so keep the moderation crisp and intellectually demanding.";
+  const turnInstruction =
+    turnKind === "opening"
+      ? "Open the debate, frame the core question, and invite a rigorous but civil exchange."
+      : turnKind === "audience_intervention"
+        ? "An audience member has entered the discussion. Briefly acknowledge the intervention and redirect the panel toward the most useful next response."
+        : turnKind === "round_transition"
+          ? "Summarize the sharpest unresolved disagreement from the round that just ended and steer the next stretch of the debate."
+          : "Close the debate with a concise synthesis, naming what became clearer and what remains unresolved.";
+
+  history.push({
+    role: "user",
+    content: `DEBATE TOPIC: ${topicPrompt}\n\nYou are chairing a live Cortex Council debate. Panelists: ${panelRoster}. Current round: ${currentRound} of ${totalRounds}. ${audienceInstruction} ${turnInstruction} Keep your moderation to 2-4 sentences. If the exchange has become truly hostile, circular, or badly off-topic, begin with [PAUSE_DEBATE] and then briefly explain why you are pausing the debate.`,
+  });
+
+  for (const msg of allMessages) {
+    if (msg.agentId === "moderator") {
+      history.push({ role: "assistant", content: msg.text });
+    } else if (msg.agentId === "__user__") {
+      history.push({
+        role: "user",
+        content: `[Audience Member]: ${msg.text}`,
+      });
+    } else {
+      history.push({
+        role: "user",
+        content: `[${msg.agentName}]: ${msg.text}`,
+      });
+    }
+  }
+
+  return mergeConsecutiveUserMessages(history);
 }
 
 function mergeConsecutiveUserMessages(

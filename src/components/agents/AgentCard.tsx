@@ -3,6 +3,7 @@
 import { Agent } from "@/lib/types";
 import { motion } from "framer-motion";
 import { useState, type FocusEvent } from "react";
+import RobotPortrait from "@/components/avatars/RobotPortrait";
 
 interface AgentCardProps {
   agent: Agent;
@@ -22,12 +23,6 @@ export default function AgentCard({
     ", "
   )}.`;
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const initials = agent.name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 
   const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
     setIsTooltipVisible(event.currentTarget.matches(":focus-visible"));
@@ -52,24 +47,15 @@ export default function AgentCard({
             : "hover:bg-white/[0.03]"
         }`}
       >
-        <div
-          className={`relative flex h-20 w-20 items-center justify-center rounded-full border text-3xl shadow-[0_10px_30px_rgba(0,0,0,0.28)] sm:h-24 sm:w-24 sm:text-[2rem] ${
-            selected ? "ring-2 ring-offset-0" : ""
-          }`}
-          style={{
-            borderColor: selected ? agent.color : `${agent.color}40`,
-            background: `radial-gradient(circle at 35% 30%, ${agent.color}42, rgba(10, 18, 31, 0.96))`,
-            boxShadow: selected
-              ? `0 0 0 3px ${agent.color}28, 0 16px 34px rgba(0, 0, 0, 0.34)`
-              : "0 12px 30px rgba(0, 0, 0, 0.26)",
-          }}
-        >
-          <span className="relative drop-shadow-[0_0_14px_rgba(255,255,255,0.18)]">
-            {agent.emoji}
-          </span>
-          <span className="absolute left-2.5 top-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/28">
-            {initials}
-          </span>
+        <div className="relative">
+          <RobotPortrait
+            name={agent.name}
+            color={agent.color}
+            emoji={agent.emoji}
+            size="card"
+            state={selected ? "listening" : "idle"}
+            highlighted={selected}
+          />
           {selected && (
             <span
               className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-black"
@@ -84,8 +70,8 @@ export default function AgentCard({
           <p className="line-clamp-2 text-xs font-semibold leading-4 text-white sm:text-sm">
             {agent.name}
           </p>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-white/28">
-            {selected ? "Selected" : agent.category.split(" ")[0]}
+          <p className="line-clamp-2 text-[10px] leading-4 text-white/34 sm:text-[11px]">
+            {agent.title}
           </p>
         </div>
       </motion.button>

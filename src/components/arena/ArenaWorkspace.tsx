@@ -52,7 +52,7 @@ export default function ArenaWorkspace() {
             <div>
               <p className="hud-label">Panel workspace</p>
               <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-                Configure a new <span className="accent-text">intellectual simulation</span>
+                Configure a new <span className="accent-text">council session</span>
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-white/58 sm:text-base">
                 Assemble your panel, choose the topic framing, and decide whether the discussion should

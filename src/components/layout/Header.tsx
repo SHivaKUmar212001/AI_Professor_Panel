@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useDiscussionStore } from "@/stores/discussion-store";
 
 export default function Header() {
-  const status = useDiscussionStore((s) => s.status);
   const pathname = usePathname();
   const { data: session, status: authStatus } = useSession();
   const user = session?.user;
@@ -27,16 +25,12 @@ export default function Header() {
         </Link>
 
         <nav className="flex items-center gap-2 sm:gap-3">
-          {(user || status !== "idle") && (
+          {user && pathname !== "/" && (
             <Link
-              href="/arena"
-              className={`rounded-full border px-3 py-2 text-sm ${
-                pathname === "/arena"
-                  ? "border-cyan-300/30 bg-cyan-400/10 text-cyan-100"
-                  : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white"
-              }`}
+              href="/"
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/60 hover:border-white/20 hover:text-white"
             >
-              Council
+              Home
             </Link>
           )}
 

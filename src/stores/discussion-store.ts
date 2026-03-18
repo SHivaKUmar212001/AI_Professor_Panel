@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DiscussionMessage, DiscussionSummary, DiscussionStore } from "@/lib/types";
+import { AvatarState, DiscussionMessage, DiscussionSummary, DiscussionStore } from "@/lib/types";
 
 export const useDiscussionStore = create<DiscussionStore>()(
   persist(
     (set, get) => ({
       // State
+      appMode: null,
       selectedAgents: [],
       topic: "",
       totalRounds: 5,
@@ -21,8 +22,11 @@ export const useDiscussionStore = create<DiscussionStore>()(
       summary: null,
       error: null,
       userMessages: [],
+      avatarStates: {},
 
       // Actions
+      setAppMode: (appMode) => set({ appMode }),
+
       toggleAgent: (agentId: string) => {
         const current = get().selectedAgents;
         if (current.includes(agentId)) {
@@ -30,6 +34,10 @@ export const useDiscussionStore = create<DiscussionStore>()(
         } else if (current.length < 5) {
           set({ selectedAgents: [...current, agentId] });
         }
+      },
+
+      setMentorAgent: (agentId: string) => {
+        set({ selectedAgents: [agentId] });
       },
 
       setTopic: (topic: string) => set({ topic }),
@@ -63,8 +71,14 @@ export const useDiscussionStore = create<DiscussionStore>()(
           ],
         })),
 
+      setAvatarState: (agentId: string, state: AvatarState) =>
+        set((prev) => ({
+          avatarStates: { ...prev.avatarStates, [agentId]: state },
+        })),
+
       reset: () =>
         set({
+          appMode: null,
           selectedAgents: [],
           topic: "",
           totalRounds: 5,
@@ -80,12 +94,14 @@ export const useDiscussionStore = create<DiscussionStore>()(
           summary: null,
           error: null,
           userMessages: [],
+          avatarStates: {},
         }),
     }),
     {
-      name: "intellect-arena-discussion",
+      name: "cortex-council-discussion",
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
+        appMode: state.appMode,
         selectedAgents: state.selectedAgents,
         topic: state.topic,
         totalRounds: state.totalRounds,

@@ -25,7 +25,9 @@ export interface Topic {
   prompt: string;
 }
 
+export type AppMode = "mentor" | "debate";
 export type DiscussionMode = "student" | "academic";
+export type AvatarState = "idle" | "listening" | "thinking" | "speaking";
 
 export interface ReferenceDiscussion {
   fileName: string;
@@ -100,6 +102,10 @@ export interface TurnEndEvent {
   agentId: string;
   round: number;
   fullText: string;
+  agentName?: string;
+  agentColor?: string;
+  agentEmoji?: string;
+  messageId?: string;
 }
 
 export interface RoundEndEvent {
@@ -130,6 +136,7 @@ export interface DiscussionSummary {
 // Zustand Store
 export interface DiscussionStore {
   // State
+  appMode: AppMode | null;
   selectedAgents: string[];
   topic: string;
   totalRounds: number;
@@ -145,9 +152,12 @@ export interface DiscussionStore {
   summary: DiscussionSummary | null;
   error: string | null;
   userMessages: { text: string; afterMessageIndex: number }[];
+  avatarStates: Record<string, AvatarState>;
 
   // Actions
+  setAppMode: (mode: AppMode) => void;
   toggleAgent: (agentId: string) => void;
+  setMentorAgent: (agentId: string) => void;
   setTopic: (topic: string) => void;
   setTotalRounds: (rounds: number) => void;
   setDiscussionMode: (mode: DiscussionMode) => void;
@@ -163,5 +173,6 @@ export interface DiscussionStore {
   setSummary: (summary: DiscussionSummary | null) => void;
   setError: (error: string | null) => void;
   addUserMessage: (text: string) => void;
+  setAvatarState: (agentId: string, state: AvatarState) => void;
   reset: () => void;
 }

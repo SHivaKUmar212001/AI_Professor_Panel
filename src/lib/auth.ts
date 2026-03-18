@@ -11,8 +11,8 @@ type AuthUser = DefaultSession["user"] & {
 
 const sessionTokenName =
   process.env.NODE_ENV === "production"
-    ? "__Secure-intellect-arena.session-token.v1"
-    : "intellect-arena.session-token.v1";
+    ? "__Secure-cortex-council.session-token.v1"
+    : "cortex-council.session-token.v1";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
