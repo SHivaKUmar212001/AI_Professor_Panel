@@ -26,6 +26,7 @@ export default function MentorPage() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
 
@@ -51,6 +52,7 @@ export default function MentorPage() {
   ) => {
     setIsStreaming(true);
     setStreamingText("");
+    setError(null);
 
     try {
       const res = await fetch("/api/mentor/message", {
@@ -90,6 +92,8 @@ export default function MentorPage() {
                 setStreamingText(fullText);
               } else if ("fullText" in data) {
                 fullText = data.fullText;
+              } else if ("message" in data) {
+                setError(data.message);
               }
             } catch {
               // skip malformed
@@ -104,8 +108,9 @@ export default function MentorPage() {
           { id: `assistant_${Date.now()}`, role: "assistant", content: fullText },
         ]);
       }
-    } catch (error) {
-      console.error("Mentor error:", error);
+    } catch (err) {
+      console.error("Mentor error:", err);
+      setError(err instanceof Error ? err.message : "Failed to get mentor response");
     } finally {
       setIsStreaming(false);
       setStreamingText("");
@@ -128,7 +133,7 @@ export default function MentorPage() {
     const userMsg: ChatMessage = { id: `user_${Date.now()}`, role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
 
-    const history = [...messages, userMsg].map((m) => ({
+    const history = messages.map((m) => ({
       role: m.role,
       content: m.content,
     }));
@@ -203,6 +208,18 @@ export default function MentorPage() {
         }}
       >
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
+          {error && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+              {error}
+              <button
+                onClick={() => setError(null)}
+                className="ml-3 text-red-400 hover:text-red-300 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
